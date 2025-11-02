@@ -8,6 +8,7 @@ Compatible with Windows (spawn-safe) multiprocessing.
 import os
 import gymnasium as gym
 import ale_py
+import argparse
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -26,26 +27,45 @@ def make_env():
 
 
 if __name__ == "__main__":
+    # ✅ Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Train PPO on Atari Pong")
+
+    parser.add_argument("--env", type=str, default="ALE/Pong-v5", help="Environment ID")
+    parser.add_argument("--total-timesteps", type=int, default=10_000_000, help="Total timesteps for training")
+    parser.add_argument("--n-envs", type=int, default=8, help="Number of parallel environments")
+    parser.add_argument("--device", type=str, default="cuda", help="Device: 'cuda' or 'cpu'")
+    parser.add_argument("--log-dir", type=str, default="./ppo_pong_logs", help="Logging directory")
+    parser.add_argument("--save-freq", type=int, default=100_000, help="Checkpoint save frequency")
+
+    args = parser.parse_args()
+
     # ✅ Windows requires the "spawn" guard
-    num_envs = 8
+    num_envs = args.n_envs
     use_subproc = True  # change to False if you get Windows spawn issues
 
+    def make_env_custom():
+        """Return an env factory that uses CLI env_id."""
+        def _init():
+            gym.register_envs(ale_py)
+            env = gym.make(args.env, frameskip=4)
+            env = Monitor(env)
+            return env
+        return _init
+
     if use_subproc:
-        env = SubprocVecEnv([make_env() for _ in range(num_envs)])
+        env = SubprocVecEnv([make_env_custom() for _ in range(num_envs)])
     else:
-        env = DummyVecEnv([make_env() for _ in range(num_envs)])
+        env = DummyVecEnv([make_env_custom() for _ in range(num_envs)])
 
     # ✅ Logging and checkpoints
-    log_dir = "./ppo_pong_logs"
-    os.makedirs(log_dir, exist_ok=True)
-
+    os.makedirs(args.log_dir, exist_ok=True)
     checkpoint_callback = CheckpointCallback(
-        save_freq=100_000 // num_envs,  # save every 100k timesteps
-        save_path=log_dir,
+        save_freq=max(1, args.save_freq // num_envs),
+        save_path=args.log_dir,
         name_prefix="ppo_pong_checkpoint",
     )
 
-    new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
+    new_logger = configure(args.log_dir, ["stdout", "csv", "tensorboard"])
 
     # ✅ PPO model setup
     model = PPO(
@@ -58,21 +78,22 @@ if __name__ == "__main__":
         learning_rate=2.5e-4,
         clip_range=0.1,
         ent_coef=0.01,
-        device="cuda"  # or "cpu" if no GPU
+        device=args.device,
     )
-
     model.set_logger(new_logger)
 
-    # ✅ Training
-    total_timesteps = 10_000_000  # ~5M = good baseline agent
+    # ✅ Training (uses your CLI value)
+    print(f"🚀 Starting PPO training on {args.env} for {args.total_timesteps} timesteps "
+          f"using {num_envs} parallel envs on {args.device.upper()}.")
+
     model.learn(
-        total_timesteps=total_timesteps,
+        total_timesteps=args.total_timesteps,
         callback=checkpoint_callback,
         progress_bar=True,
     )
 
     # ✅ Save final model
-    model.save(os.path.join(log_dir, "ppo_pong_final"))
+    model.save(os.path.join(args.log_dir, "ppo_pong_final"))
     env.close()
 
-    print("✅ Training complete! Model saved to:", log_dir)
+    print(f"✅ Training complete! Model saved to: {args.log_dir}")

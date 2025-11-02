@@ -1,0 +1,26 @@
+algo: ppo
+total_timesteps: 5000000
+n_envs: 8
+frame_stack: 4
+seed: 0
+
+# ✅ Training hyperparameters
+learning_rate: 1.0e-4       # Lower = smoother updates
+n_steps: 256                # Longer rollouts = more stable
+batch_size: 512
+n_epochs: 4
+gamma: 0.99
+ent_coef: 0.001             # Lower entropy = less random paddle twitch
+clip_range: 0.1
+device: cuda
+
+# ✅ Logging / Checkpointing
+checkpoint_freq: 100000
+eval_freq: 200000
+n_eval_episodes: 10
+
+# ✅ Early stopping
+early_stop:
+  enabled: true
+  patience: 5
+  min_delta: 1.0
