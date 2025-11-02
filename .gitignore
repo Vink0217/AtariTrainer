@@ -9,5 +9,5 @@ wheels/
 # Virtual environments
 .venv
 
-#run logs
-runs/
+#pong logs
+ppo_pong_logs/
