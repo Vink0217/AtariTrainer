@@ -4,6 +4,8 @@ import time
 import gymnasium as gym
 import ale_py
 import torch  # <-- Import PyTorch
+import sys
+import os as _os
 
 from stable_baselines3 import PPO, A2C, DQN
 from stable_baselines3.common.callbacks import EvalCallback
@@ -33,6 +35,13 @@ class Trainer:
         self.use_cpu_preprocessing = not self.is_gpu_available
         self.device = self.cfg.get("device", "auto")
 
+        # Diagnostic info to help detect venv/interpreter mismatches.
+        # This prints the Python executable and torch CUDA availability so
+        # you can verify the interpreter that actually runs training.
+        print(f"[Trainer] python executable: {sys.executable}")
+        print(f"[Trainer] CUDA_VISIBLE_DEVICES: {_os.environ.get('CUDA_VISIBLE_DEVICES')}")
+        print(f"[Trainer] torch.cuda.is_available(): {torch.cuda.is_available()}")
+
         if self.is_gpu_available:
             print("[Trainer] CUDA device detected. Using GPU Preprocessing.")
         else:
@@ -59,13 +68,21 @@ class Trainer:
         
         print(f"[Trainer] Initializing model for {algo_name}")
         
+        # Avoid passing 'policy' twice: configs often include a 'policy' key
+        # inside algo_params (for human readability). The Algo constructor
+        # expects the first arg or keyword 'policy' and passing it again via
+        # **algo_params causes a TypeError. Remove it if present.
+        algo_call_params = dict(algo_params) if algo_params is not None else {}
+        if 'policy' in algo_call_params:
+            algo_call_params.pop('policy')
+
         model = AlgoClass(
-            policy=policy_to_use, # <-- Use the selected policy
+            policy=policy_to_use,  # selected policy
             env=env,
             verbose=1,
-            device=self.device, 
+            device=self.device,
             tensorboard_log=self.log_dir,
-            **algo_params  
+            **algo_call_params
         )
         return model
 
