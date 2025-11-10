@@ -87,7 +87,7 @@ def run_training():
     # Make sure the train.py CLI uses "cuda" as device so Torch will use GPU inside container
     cmd = [
         sys.executable, "train.py",
-        "--config", "configs/pacman.yaml",
+        "--config", "configs/spaceinvader.yaml",
         "--device", "cuda",
         "--log-dir", "/root/project/runs",
         # add/override other CLI args as needed, e.g. "--algo", "PPO", "--total-timesteps", "1000000"

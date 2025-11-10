@@ -178,6 +178,9 @@ class Trainer:
         except Exception:
             pass
         # Enhanced eval callback with verbose=1 and custom name
+        # NOTE: Some versions of stable-baselines3 do not accept the
+        # `name_prefix` argument on EvalCallback. To maintain compatibility
+        # with a wider range of SB3 installs, avoid passing that kwarg.
         eval_callback = EvalCallback(
             eval_env,
             best_model_save_path=self.log_dir,
@@ -187,7 +190,6 @@ class Trainer:
             deterministic=True,
             render=False,
             verbose=1,  # Enable verbose output
-            name_prefix="eval"  # Add a prefix for clarity
         )
         early_cfg = self.cfg.get("early_stop") or {}
         early_cb = None
